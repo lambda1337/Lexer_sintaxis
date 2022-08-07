@@ -18,25 +18,53 @@ class Lexer:
     def __init__(self, tokens_posibles) -> None:
         self.TOKENS_POSIBLES = tokens_posibles
 
+    # ESTA FUNCION SIMPLEMENTE
+    # MUESTRA MAS LINDO LOS RESULTADOS DEL LEXER
+    # Y QUITA LOS LEXEMAS INVALIDOS DEL TEXTO 
+    def __formatear_tuplas(self, tuplas, lexemas_invalidos):
+        texto = ""
+
+        for tupla in tuplas:
+            texto += f"- AUTOMATA:  {tupla[0]}  - LEXEMA: {tupla[1]} \n"
+
+        for invalido in lexemas_invalidos:
+            texto = texto.replace(invalido, "")
+        return texto
+
+    ## ACOMODA LA LISTA DE AUTOMATAS, PARA EL QUE SEA FINAL, ESTE ADELANTE DE TODOS.
+    def __acomodar_listado_automatas(self, automatas):
+        nueva_lista = []
+        for automata in automatas:
+            if automata[1] == "FINAL":
+                nueva_lista = [automata] + nueva_lista
+                continue
+            nueva_lista.append(automata)
+        return nueva_lista
+
     def __alimentar_automatas(self, lexema) -> list:
         # Creo array de aceptados
-        aceptados = []
+        posibles = []
         # por cada TUPLA en TOKENS_POSIBLES hacer...
         for (token, automata) in self.TOKENS_POSIBLES:
             # si el automata de la tupla actual queda en estado trampa
             # con el lexema actual, continuamos al siguiente automata, ya que este no lo acepta.
             # ejemplo, pasar 34 en el automata A_sino
-            if automata(lexema) == ESTADO_TRAMPA:
+            resultado = automata(lexema)
+            if resultado == ESTADO_TRAMPA:
                 continue
             # caso contrario, agregamos a aceptados el token de la tupla actual
-            aceptados.append(token)
+            elif resultado == ESTADO_NO_FINAL:
+                posibles.append((token, "NO FINAL"))
+            elif resultado == ESTADO_FINAL:
+                posibles.append((token, "FINAL"))
         # si la longitud del array aceptados es mayor a 0
         # retornar el aceptados[0], osea el primer automata de la lista
         #caso contrario, devolver lista vacia
         # ya que si no hacemos esto, nos tira error por devolver posicion [0] en lista vacia.
-        return aceptados[0] if len(aceptados) > 0 else []
+        posibles = self.__acomodar_listado_automatas(posibles)
+        return posibles[0] if len(posibles) > 0 else []
 
-    def __recorriendo_lexema(self, source_code) -> list:
+    def __recorriendo_lexema(self, source_code, modo_test) -> list:
         # lista de tokens
         tokens = []
         # lista de tokens invalidos , por ejemplo = & % $ · !
@@ -63,7 +91,7 @@ class Lexer:
             # el lexema
             while True:
                 # si la variable start mayor que el codigo fuente, break ciclo
-                if start > len(source_code):
+                if start >= len(source_code)+1:
                     break
                 # lexema es igual al codigo fuente desde start_lexema hasta start+1
                 lexema = source_code[start_lexema:start+1]
@@ -78,26 +106,30 @@ class Lexer:
                 # debemos regresar el primero, el Automata_sino
                 # por eso en la funcion retorna array posicion 0
                 result = self.__alimentar_automatas(lexema)
-
                 # si la longitud de la variable result es igual a 0
                 # significa que el lexema NO es valido, rompemos ciclo
                 if len(result) == 0:
                     break
                 # si el lexema es valido, agregamos a posibles tokens extra caracter
                 else:
-                    posibles_tokens_extra_char.append(result)
+                    posibles_tokens_extra_char.append(result[0])
+
                 # avanzamos un caracter en el codigo fuente
                 # importante esto, ya que si no, se bugea
                 start += 1
 
             # si longitud de posibles tokens > 0, entonces agregamos a tokens con su respecitvo lexema
             if len(posibles_tokens) > 0:
-                tokens.append((posibles_tokens, lexema))
+                tokens.append((posibles_tokens[0], lexema))
             else:
                 # caso contrario, TOKEN INVALIDO!
                 tokens_invalidos.append(lexema)
+                start += 1
 
-        return tokens, tokens_invalidos
+        if modo_test:
+            return tokens, tokens_invalidos
+        else:
+            return self.__formatear_tuplas(tokens, tokens_invalidos)
 
     # funcion para testear automatas por separado
     # no se usa , es para testing nomas
@@ -105,11 +137,8 @@ class Lexer:
         print( self.__alimentar_automatas(sour))
 
     # funcion publica para utilizar el lexer privado
-    def use(self, source_code) -> None:
-        return self.__recorriendo_lexema(source_code)
+    def use(self, source_code, modo_test) -> None:
+        return self.__recorriendo_lexema(source_code, modo_test)
 
 LEXER = Lexer(TOKENS_POSIBLES)
-
-LEXER.test_automatas("cont")
-LEXER.test_automatas("cont*")
-LEXER.test_automatas("*")
+print(LEXER.use("si 5 menor que hacer esto", False))
